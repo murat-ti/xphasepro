@@ -1,0 +1,6 @@
+framework module PanoMakerPro {
+  umbrella header "PanoMakerPro.h"
+
+  export *
+  module * { export * }
+}
