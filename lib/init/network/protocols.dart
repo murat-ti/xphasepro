@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:xphasepro/init/constants/app_constants.dart';
 import 'package:xphasepro/init/utils/helper.dart';
 import 'connect.dart';
 import 'enum/network_routes_path.dart';
@@ -7,8 +8,8 @@ import 'package:http/http.dart' as http;
 class Camera {
 
   static const successStatus = 'OK';
-  //static const mainURL = '${ApplicationApi.serverUrl}:${ApplicationApi.port8080}'; //getFile work on 8081
-  static const mainURL = 'http://192.168.1.100/xphase/index.php';
+  static const mainURL = '${ApplicationApi.serverUrl}:${ApplicationApi.port8080}'; //getFile work on 8081
+  //static const mainURL = 'http://192.168.1.100/xphase/index.php';
 
   // Get capture and save status and ori file list from camera
   // based on GET http://192.168.6.1:8080/get_list
@@ -79,7 +80,7 @@ class Camera {
   // Response status 200: ori file data
   // Response status 404 (when ori file not found)
   static Future<http.StreamedResponse> getFile(String filename, String downloadPath) async {
-    var url = '$mainURL/${NetworkRoutes.getFile.path}?filename=$filename';
+    var url = '$mainURL/${NetworkRoutes.getFile.path}?filename=$filename'.replaceAll('8080', '8081');
     //final response = await connect(url, RequestType.get);
     final response = await download(url: url, downloadPath: downloadPath);
     return response;
