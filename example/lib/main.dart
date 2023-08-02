@@ -107,7 +107,7 @@ class _MyHomePageState extends State<MyHomePage> {
         scrollDirection: Axis.horizontal,
         children: [
           buildButtonPadding(const Text('Get List'), getList, _currentAction == CameraActions.getList),
-          buildButtonPadding(
+          /*buildButtonPadding(
               const Text('Get Information'), getInformation, _currentAction == CameraActions.getInformation),
           buildButtonPadding(
               const Text('Exit Timelapse'), exitTimelapse, _currentAction == CameraActions.exitTimelapse),
@@ -133,7 +133,7 @@ class _MyHomePageState extends State<MyHomePage> {
               latitude: 0,
             ),
             _currentAction == CameraActions.doCapture,
-          ),
+          ),*/
         ],
       ),
     );
@@ -167,7 +167,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                 child: Text(getListItems[index]),
                               ),
                             ),
-                            buildButtonPadding(const Text('Get Thumb'), () async {
+                            /*buildButtonPadding(const Text('Get Thumb'), () async {
                               //String? filename = await getThumb(getListItems[index]);
                               //setSubActiveIndex(index, filename != null ? 'File saved in $filename' : 'error occurs');
                               getThumb(getListItems[index], index);
@@ -181,7 +181,7 @@ class _MyHomePageState extends State<MyHomePage> {
                               bool? status = await deleteFile(getListItems[index]);
                               setSubActiveIndex(
                                   index, status != null ? 'image delete status: $status' : 'error occurs');
-                            }),
+                            }),*/
                             //buildOriImageActionsBox(),
                             buildButtonPadding(
                               const Text('Start stitch'),
@@ -245,13 +245,14 @@ class _MyHomePageState extends State<MyHomePage> {
 
   Future<void> getList() async {
     resetActions(CameraActions.getList);
-    final response = await xphasepro.getList();
+    getListItems = ['2030-01-01_10-40-53','2030-01-01_10-40-53','2030-01-01_10-40-53'];
+    /*final response = await xphasepro.getList();
     if (response != null) {
       getListItems = response;
       infoText = '';
     } else {
       infoText = 'error occurs';
-    }
+    }*/
 
     //update ui
     setState(() {});
