@@ -1,13 +1,11 @@
-import 'dart:async' show StreamSubscription;
+import 'dart:async';
 import 'dart:io' show File;
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as path;
 import 'package:xphasepro_example/init/enum/camera_actions.dart';
 import 'init/directory/temp_directory.dart';
 import 'package:xphasepro/xphasepro.dart' as xphasepro;
-import 'dart:typed_data' show Uint8List;
-import 'package:async/async.dart';
-import 'package:http/http.dart' as http;
+import 'package:dio/dio.dart' show Response;
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -44,6 +42,9 @@ class _MyHomePageState extends State<MyHomePage> {
   List<String> getListItems = [];
   String infoText = '';
   int currentSubActionIndex = -1;
+  double? progress = 0.0;
+  int pointer = 0;
+  int currentIndex = 0;
 
   String? jpgPath;
 
@@ -167,7 +168,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                 child: Text(getListItems[index]),
                               ),
                             ),
-                            /*buildButtonPadding(const Text('Get Thumb'), () async {
+                            buildButtonPadding(const Text('Get Thumb'), () async {
                               //String? filename = await getThumb(getListItems[index]);
                               //setSubActiveIndex(index, filename != null ? 'File saved in $filename' : 'error occurs');
                               getThumb(getListItems[index], index);
@@ -179,9 +180,9 @@ class _MyHomePageState extends State<MyHomePage> {
                             }),
                             buildButtonPadding(const Text('Delete File'), () async {
                               bool? status = await deleteFile(getListItems[index]);
-                              setSubActiveIndex(
-                                  index, status != null ? 'image delete status: $status' : 'error occurs');
-                            }),*/
+                              setSubActiveIndex(status != null ? 'image delete status: $status' : 'error occurs',
+                                  index: index);
+                            }),
                             //buildOriImageActionsBox(),
                             buildButtonPadding(
                               const Text('Start stitch'),
@@ -230,9 +231,9 @@ class _MyHomePageState extends State<MyHomePage> {
     currentSubActionIndex = -1;
   }
 
-  void setSubActiveIndex(index, text) {
+  void setSubActiveIndex(text, {int? index}) {
     setState(() {
-      currentSubActionIndex = index;
+      currentSubActionIndex = index ?? currentSubActionIndex;
       infoText = text;
     });
   }
@@ -245,14 +246,55 @@ class _MyHomePageState extends State<MyHomePage> {
 
   Future<void> getList() async {
     resetActions(CameraActions.getList);
-    getListItems = ['2030-01-01_10-40-53','2030-01-01_10-40-53','2030-01-01_10-40-53'];
-    /*final response = await xphasepro.getList();
+    //getListItems = ['2030-01-01_10-40-53','2030-01-01_10-40-53','2030-01-01_00-00-00'];
+    final response = await xphasepro.getList();
     if (response != null) {
-      getListItems = response;
-      infoText = '';
+     getListItems = response;
+     infoText = '';
     } else {
-      infoText = 'error occurs';
-    }*/
+     infoText = 'error occurs';
+    }
+    // final response = await xphasepro.getList();
+    // getListItems = response ?? [];
+    // if (getListItems.isNotEmpty) {
+    //   for (int i = 0; i < getListItems.length; i++) {
+    //     //print('Delay 3 sec');
+    //     infoText = '';
+    //     //getListItems = ['2030-01-01_10-40-53'];
+    //     const jpgTitle = '2023-07-03_18.47.23';
+    //     //var downloadPath = '${TempDirectory.path}/${getListItems[0]}.ori';
+    //     //print('$i download start');
+    //     /*await xphasepro.getFile(getListItems[0], downloadPath, (int received, int total) {
+    //       setSubActiveIndex(i, 'Downloading: ${((received / total) * 100).floor()}');
+    //     });*/
+    //     //print('$i download end');
+    //
+    //     await startConvert(getListItems[i], 0);
+    //
+    //     //print('remove $downloadPath');
+    //     //await File(downloadPath).delete();
+    //
+    //     var jpgPath = '${TempDirectory.path}/$jpgTitle.jpg';
+    //     print('remove $jpgPath');
+    //     if (File(jpgPath).existsSync()) {
+    //       await File(jpgPath).delete();
+    //     }
+    //
+    //     await Future.delayed(const Duration(seconds: 3));
+    //
+    //     /*if(i == 2) {
+    //       //call for run GC
+    //       print('call another action for run GC');
+    //       await xphasepro.getFile(getListItems[0], downloadPath, (int received, int total) {
+    //         setSubActiveIndex(i, 'Downloading: ${((received / total) * 100).floor()}');
+    //       });
+    //     }*/
+    //
+    //     infoText = '';
+    //   }
+    // } else {
+    //   infoText = 'error occurs';
+    // }
 
     //update ui
     setState(() {});
@@ -260,11 +302,13 @@ class _MyHomePageState extends State<MyHomePage> {
 
   Future<void> getThumb(String filenameWoExt, int index) async {
     var downloadPath = '${TempDirectory.path}/$filenameWoExt.jpg';
-    downloadFile(
+    /*downloadFile(
       response: xphasepro.getThumb(filenameWoExt, downloadPath),
       downloadPath: downloadPath,
       index: index,
-    );
+    );*/
+    await xphasepro.getThumb(filenameWoExt, downloadPath);
+    setSubActiveIndex(File(downloadPath).existsSync() ? 'downloaded' : 'error occurs', index: index);
   }
 
   Future<bool?> deleteFile(String filenameWoExt) async {
@@ -274,11 +318,18 @@ class _MyHomePageState extends State<MyHomePage> {
 
   Future<void> getFile(String filenameWoExt, int index) async {
     var downloadPath = '${TempDirectory.path}/$filenameWoExt.ori';
-    downloadFile(
+    /*downloadFile(
       response: xphasepro.getFile(filenameWoExt, downloadPath),
       downloadPath: downloadPath,
       index: index,
-    );
+    );*/
+    Response? response = await xphasepro.getFile(filenameWoExt, downloadPath, onReceiveProgress: (int received, int total) {
+      setSubActiveIndex('Downloading: ${((received / total) * 100).floor()}',index:index);
+    });
+    print('response.headers');
+    print(response?.headers['content-length']);
+    print(response?.data.runtimeType);
+    setSubActiveIndex(File(downloadPath).existsSync() ? 'Downloaded' : 'error occurs', index: index);
   }
 
   Future<void> getInformation() async {
@@ -346,6 +397,7 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   Future<void> startConvert(String filenameWoExt, int index) async {
+    Timer? timer;
     final stopwatch = Stopwatch()..start();
     int? result;
     final String oriPath = path.join(TempDirectory.path, '$filenameWoExt.ori');
@@ -353,111 +405,52 @@ class _MyHomePageState extends State<MyHomePage> {
     final file = File(oriPath);
 
     if (!file.existsSync()) {
-      setSubActiveIndex(index, 'The ori file not found in $oriPath');
+      setSubActiveIndex('The ori file not found in $oriPath', index: index);
     } else {
       try {
         //double? progress = await xphasepro.getConvertingProgress() ?? 0.0;
-        setSubActiveIndex(index, 'Converting started...');
-        result = await xphasepro.convertOriToJpg(inputPath: oriPath, outputPath: '${TempDirectory.path}/');
+        setSubActiveIndex('Converting started...', index: index);
+        pointer = xphasepro.getPointer();
+        timer = Timer.periodic(const Duration(seconds: 3), getProgressInTimer);
+        result = await xphasepro.convertOriToJpg(
+          inputPath: oriPath,
+          outputPath: '${TempDirectory.path}/',
+          pointer: pointer,
+        );
         final outputFileName = '$filenameWoExt.jpg';
         if (result == 0) {
           jpgPath = path.join(TempDirectory.path, outputFileName);
         } else {
           jpgPath = null;
         }
-        //progress = await xphasepro.getConvertingProgress(lastProgress: progress);
-        setSubActiveIndex(index, 'Result: $result');
+        setSubActiveIndex('Result: $result', index: index);
       } catch (e) {
         final result = e.toString();
         if (result.contains('x86/libPanoMaker.so')) {
-          setSubActiveIndex(index, 'It does not work on emulator. No support for x86 processor.');
+          setSubActiveIndex('It does not work on emulator. No support for x86 processor.', index: index);
         } else {
-          setSubActiveIndex(index, e.toString());
+          setSubActiveIndex(e.toString(), index: index);
         }
       } finally {
+        timer?.cancel();
+        progress = 0.0;
+        pointer = 0;
         if (result == 0) {
-          setSubActiveIndex(index, 'Completed execution in ${stopwatch.elapsed.inSeconds} seconds');
+          setSubActiveIndex('Completed execution in ${stopwatch.elapsed.inSeconds} seconds', index: index);
         }
       }
     }
   }
 
-  /*Future<void> removeJpgImage() async {
-    String tempPath = path.join(TempDirectory.path, outputFileName);
-    if (File(tempPath).existsSync()) {
-      File(tempPath).deleteSync();
-      setState(() {
-        jpgPath = null;
-      });
-    }
-  }*/
+  Future<void> getProgressInTimer(Timer t) async {
+    progress = progress ?? 0;
+    progress = await xphasepro.getConvertingProgress(
+      lastProgress: progress!,
+      pointer: pointer,
+    );
 
-  void downloadFile({
-    required Future<http.StreamedResponse> response,
-    required String downloadPath,
-    required int index,
-  }) {
-    // Download file as a stream
-    List<List<int>> chunks = [];
-    int totalSize = 0;
-    int downloaded = 0;
-    late StreamSubscription<http.StreamedResponse> subscription;
-    late final Uint8List bytes;
-
-    subscription = response.asStream().listen((http.StreamedResponse r) async {
-      debugPrint('Start get file size');
-      if (r.headers['content-length'] != null) {
-        totalSize = int.parse(r.headers['content-length']!);
-        debugPrint('File size: ${totalSize ~/ 1024 ~/ 1024}MB');
-      }
-      final reader = ChunkedStreamReader(r.stream);
-      try {
-        // Set buffer size to 64KB
-        int chunkSize = 64 * 1024;
-
-        Uint8List buffer;
-
-        do {
-          buffer = await reader.readBytes(chunkSize);
-          // Add buffer to chunks list
-          chunks.add(buffer);
-          downloaded += buffer.length;
-
-          setSubActiveIndex(index, 'Downloading: ${downloaded ~/ 1024 ~/ 1024}MB from ${totalSize ~/ 1024 ~/ 1024}MB');
-        } while (buffer.length == chunkSize);
-
-
-        // Write chunks to file
-        File file = File(downloadPath);
-
-        //this approach constantly increase memory
-        //final Uint8List bytes = Uint8List(r.contentLength!);
-
-        //this approach helps to release memory
-        WeakReference<Uint8List> weakReferenceBytes = WeakReference(Uint8List(r.contentLength!));
-
-        int offset = 0;
-        for (List<int> chunk in chunks) {
-          /*bytes.setRange(offset, offset + chunk.length, chunk);
-          offset += chunk.length;*/
-          if(weakReferenceBytes.target != null) {
-            weakReferenceBytes.target!.setRange(offset, offset + chunk.length, chunk);
-            offset += chunk.length;
-          }
-        }
-
-        //await file.writeAsBytes(bytes);
-        if(weakReferenceBytes.target != null) {
-          await file.writeAsBytes(weakReferenceBytes.target!);
-        }
-
-        setSubActiveIndex(index, 'File downloaded');
-      } catch (e) {
-        debugPrint(e.toString());
-      } finally {
-        reader.cancel();
-        subscription.cancel();
-      }
-    });
+    //currentSubActionIndex
+    setSubActiveIndex('Converting progress: ${(progress! * 100.0).toStringAsFixed(2)}%');
+    //debugPrint('${(progress! * 100.0).toStringAsFixed(2)}%');
   }
 }

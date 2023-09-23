@@ -4,7 +4,6 @@ import 'dart:typed_data' as td show Uint8List;
 import 'package:ffi/ffi.dart';
 import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:path/path.dart' as path show basenameWithoutExtension;
-
 import 'type_converter.dart';
 
 typedef ProInitRawFileReaderType = ffi.Pointer<ffi.Void> Function(ffi.Pointer<ffi.Uint8>, ffi.Int);
@@ -80,6 +79,7 @@ class XPhaseProBridge {
   late final ProCleanRawFileReaderTypeDart _proCleanRawFileReaderType;
   late final ProMakePanoramaBufTypeDart _proMakePanoramaBufTypeDart;
   late final ProGetProgressTypeDart _proGetProgressTypeDart;
+
   //final ffi.Pointer<ffi.Uint8> dbgDataPtr = TypeConverter.castToCFRomList(data: List<int>.filled(256, 0, growable: false));
 
   XPhaseProBridge(ffi.DynamicLibrary dynamicLibrary) {
@@ -99,47 +99,75 @@ class XPhaseProBridge {
         dynamicLibrary.lookupFunction<ProGetProgressType, ProGetProgressTypeDart>('ProGetProgress');
   }
 
+  int getPointer() {
+    final ffi.Pointer<ffi.Uint8> dbgDataPtr = TypeConverter.castToCFRomList(data: List<int>.filled(256, 0, growable: false));
+    debugPrint(dbgDataPtr.toString());
+    return dbgDataPtr.address;
+  }
+
   int convertImage({
     required String inputPath,
     required String outputPath,
+    required int threadNum,
+    required int memType,
+    required int hdrSel,
+    required int outputType,
+    required int colorMode,
+    required int extendMode,
+    required int outputJpgType,
+    required int outputQuality,
+    required int stitchMode,
+    required int gyroMode,
+    required int templateMode,
+    required double logoAngle,
+    required double luminance,
+    required double contrastRatio,
+    required int gammaMode,
+    required int wbMode,
+    required double wbConfB,
+    required double wbConfG,
+    required double wbConfR,
+    required double saturation,
+    required int pointer,
   }) {
     int result = -1;
-    const threadNum = 4; //should be 4
-    const memType = 0; //should be 0
+    //const threadNum = 4; //should be 4
+    //const memType = 0; //should be 0
     // rawFileReader => handle of “RawFileReader” created by “ProInitRawFileReader”
     // outputDirPtr => folder path to hold output file. Should end with char ‘/’
     // inputFilenamePtr => ori file name without “.ori”, with the pattern “YYYY-MM-DD_hh-mm-ss”
-    const hdrSel = 10; //hdr merge or not => 10:hdr merge
-    const outputType = 0; //0:jpg
-    const colorMode = 1; //should be 1 if outputType is 0
-    const extendMode = 0; //should be 0
-    const outputJpgType = 1; //Range [0~1]  0: YUV420; 1: YUV444
-    const outputQuality = 90; //Range [70~99] quality of output jpg file
-    const stitchMode = 0; //select sence for hdr merge optimization => Range [0~1]  0: Motion; 1: Static
-    const gyroMode = 0; //whether to use gyroscope for level correction => Range [0~1]  0:no correction; 1: correction
-    const templateMode = 0; //For normal stitch: Range [0]
+    //const hdrSel = 10; //hdr merge or not => 10:hdr merge
+    //const outputType = 0; //0:jpg
+    //const colorMode = 1; //should be 1 if outputType is 0
+    //const extendMode = 0; //should be 0
+    //const outputJpgType = 1; //Range [0~1]  0: YUV420; 1: YUV444
+    //const outputQuality = 90; //Range [70~99] quality of output jpg file
+    //const stitchMode = 0; //select sence for hdr merge optimization => Range [0~1]  0: Motion; 1: Static
+    //const gyroMode = 0; //whether to use gyroscope for level correction => Range [0~1]  0:no correction; 1: correction
+    //const templateMode = 0; //For normal stitch: Range [0]
     //strEmptyPtr => For normal stitch: should be “”
-    const logoAngle = -1.0; //Should be -1.0
-    const luminance = 1.2; //luminance of output panoramic photo =>	Range [1.0~1.5] 1.0: darkest; 1.5: brightest
-    const contrastRatio =
-        1.3; //contrast of output panoramic photo =>	Range [1.0~1.5] 1.0: lowest contrast; 1.5: highest contrast
-    const gammaMode =
-        1; //gamma curve of output panoramic photo =>	Range [0~1]  0: shadow is darker; 1: shadow is brighter
-    const wbMode = 0; //select white balance mode => Range [0~2]  0: auto; 1: indoor; 2: manual
-    const wbConfB =
-        1.0; //manual white balance ratio for blue channel (no effect if wbMode = 0) => Range [0.5~2.0] 0.5: least blue; 2.0: most blue
-    const wbConfG =
-        1.0; //manual white balance ratio for green channel (no effect if wbMode = 0) => Range [0.5~2.0] 0.5: least green; 2.0: most green
-    const wbConfR =
-        1.0; //manual white balance ratio for red channel (no effect if wbMode = 0) =>	Range [0.5~2.0] 0.5: least red; 2.0: most red
-    const saturation = 1.0; // Should be 1.0
+    //const logoAngle = -1.0; //Should be -1.0
+    //const luminance = 1.2; //luminance of output panoramic photo =>	Range [1.0~1.5] 1.0: darkest; 1.5: brightest
+    //const contrastRatio =
+    //1.3; //contrast of output panoramic photo =>	Range [1.0~1.5] 1.0: lowest contrast; 1.5: highest contrast
+    //const gammaMode =
+    //    1; //gamma curve of output panoramic photo =>	Range [0~1]  0: shadow is darker; 1: shadow is brighter
+    //const wbMode = 0; //select white balance mode => Range [0~2]  0: auto; 1: indoor; 2: manual
+    //const wbConfB =
+    //    1.0; //manual white balance ratio for blue channel (no effect if wbMode = 0) => Range [0.5~2.0] 0.5: least blue; 2.0: most blue
+    //const wbConfG =
+    //    1.0; //manual white balance ratio for green channel (no effect if wbMode = 0) => Range [0.5~2.0] 0.5: least green; 2.0: most green
+    //const wbConfR =
+    //    1.0; //manual white balance ratio for red channel (no effect if wbMode = 0) =>	Range [0.5~2.0] 0.5: least red; 2.0: most red
+    //const saturation = 1.0; // Should be 1.0
     //dbgDataPtr => debug data buffer to hold stitching progress and debug information. Size of dbgData should >= 256. dbgData should be initialized with 0
 
     late final ffi.Pointer<ffi.Uint8> oriFileBufPtr;
     late final ffi.Pointer<ffi.Uint8> outputDirPtr;
     late final ffi.Pointer<ffi.Uint8> inputFilenamePtr;
     late final ffi.Pointer<ffi.Uint8> strEmptyPtr;
-    late final ffi.Pointer<ffi.Uint8> dbgDataPtr;
+    //late final ffi.Pointer<ffi.Uint8> dbgDataPtr;
+    final ffi.Pointer<ffi.Uint8> dbgDataPtr = ffi.Pointer<ffi.Uint8>.fromAddress(pointer);
 
     try {
       String oriFilename = path.basenameWithoutExtension(inputPath); //'2023-07-01_00-00-00';
@@ -164,11 +192,9 @@ class XPhaseProBridge {
         outputDirPtr = TypeConverter.castToCFRomList(data: outputPath.codeUnits);
         inputFilenamePtr = TypeConverter.castToCFRomList(data: oriFilename.codeUnits);
         strEmptyPtr = TypeConverter.castToCFRomList(data: ''.codeUnits);
-        dbgDataPtr = TypeConverter.castToCFRomList(
-            data: List<int>.filled(256, 0, growable: false));
+        //dbgDataPtr = TypeConverter.castToCFRomList(data: List<int>.filled(256, 0, growable: false));
 
         debugPrint('Start converting: $oriFilename => $outputPath');
-        debugPrint(dbgDataPtr.toString());
 
         //ProMakePanoramaBuf will stitch ori file and generate panoramic jpg
         result = _proMakePanoramaBufTypeDart(
@@ -206,7 +232,7 @@ class XPhaseProBridge {
       } else {
         debugPrint('weakReferenceData is null');
       }
-    } catch(e) {
+    } catch (e) {
       debugPrint('Exception: ${e.toString()}');
     } finally {
       //Releases memory allocated on the native heap
@@ -221,11 +247,10 @@ class XPhaseProBridge {
     return result;
   }
 
-  double getProgress({required double lastProgress}) {
-    debugPrint('Start listen progress: $lastProgress');
-    /*lastProgress = _proGetProgressTypeDart(lastProgress, dbgDataPtr);
-    debugPrint('$dbgDataPtr');
-    debugPrint('${lastProgress * 100.0}%');*/
+  double getProgress({required double lastProgress, required int pointer}) {
+    final dbgDataPtr = ffi.Pointer<ffi.Uint8>.fromAddress(pointer);
+    //debugPrint('getProgress pointer: $pointer => $dbgDataPtr');
+    lastProgress = _proGetProgressTypeDart(lastProgress, dbgDataPtr);
     return lastProgress;
   }
 }

@@ -1,15 +1,16 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
-import 'package:xphasepro/init/constants/app_constants.dart';
-import 'package:xphasepro/init/utils/helper.dart';
+import '../constants/app_constants.dart';
+import '../utils/helper.dart';
 import 'connect.dart';
 import 'enum/network_routes_path.dart';
-import 'package:http/http.dart' as http;
 
 class Camera {
-
   static const successStatus = 'OK';
-  static const mainURL = '${ApplicationApi.serverUrl}:${ApplicationApi.port8080}'; //getFile work on 8081
-  //static const mainURL = 'http://192.168.1.100/xphase/index.php';
+
+  //static const mainURL = '${ApplicationApi.serverUrl}:${ApplicationApi.port8080}'; //getFile work on 8081
+  static const mainURL = 'http://192.168.1.100/xphase/index.php';
+  static const String _splitFrom = '\r\n';
 
   // Get capture and save status and ori file list from camera
   // based on GET http://192.168.6.1:8080/get_list
@@ -21,9 +22,9 @@ class Camera {
     final url = '$mainURL/${NetworkRoutes.getList.path}';
     final response = await connect(url);
 
-    if(response?.body != null && response!.body.isNotEmpty) {
-      final result = response.body.split('\\r\\n');
-      if(result.isNotEmpty) {
+    if (response?.data != null && response!.data.isNotEmpty) {
+      final result = response.data.split(_splitFrom);
+      if (result.isNotEmpty) {
         final responseStatuses = result[0].split(',');
         if (responseStatuses.length == 2) {
           final captureStatus = int.tryParse(Helper.numberExtractor(responseStatuses[0])) ?? -1;
@@ -42,6 +43,10 @@ class Camera {
     return null;
   }
 
+  static  Future<bool> get isSaved async {
+    return (await Camera.getList) != null;
+  }
+
   // Get exif information struct of one ori file from camera
   // based on GET http://192.168.6.1:8080/get_ parameters?filename=2020-02-03_12-04-05
   // Response:
@@ -58,10 +63,14 @@ class Camera {
   // Response:
   // Response status 200: thumbnail jpg file data
   // Response status 404 (when ori file not found)
-  static Future<http.StreamedResponse> getThumb(String filename, String downloadPath) async {
-    final url = '$mainURL/${NetworkRoutes.getThumb.path}?filename=$filename';
-    final response = await download(url: url, downloadPath: downloadPath);
-    return response;
+  static Future<void> getThumb(String filename, String downloadPath) async {
+    final url = getThumbUrl(filename);
+    await downloadDio(url: url, downloadPath: downloadPath);
+  }
+
+  //it is used for showing thumbs as network images in gallery
+  static String getThumbUrl(String filename) {
+    return '$mainURL/${NetworkRoutes.getThumb.path}?filename=$filename';
   }
 
   // Delete ori file from camera
@@ -71,7 +80,7 @@ class Camera {
   static Future<bool?> deleteFile(String filename) async {
     final url = '$mainURL/${NetworkRoutes.delFile.path}?filename=$filename';
     final response = await connect(url);
-    return response?.body.contains(successStatus);
+    return response?.data.contains(successStatus);
   }
 
   // Get ori from camera
@@ -79,11 +88,18 @@ class Camera {
   // Response:
   // Response status 200: ori file data
   // Response status 404 (when ori file not found)
-  static Future<http.StreamedResponse> getFile(String filename, String downloadPath) async {
+  static Future<Response?> getFile(
+    String filename,
+    String downloadPath,
+    Function(int, int)? onReceiveProgress,
+  ) async {
     var url = '$mainURL/${NetworkRoutes.getFile.path}?filename=$filename'.replaceAll('8080', '8081');
     //final response = await connect(url, RequestType.get);
-    final response = await download(url: url, downloadPath: downloadPath);
-    return response;
+    return await downloadDio(
+      url: url,
+      downloadPath: downloadPath,
+      onReceiveProgress: onReceiveProgress,
+    );
   }
 
   // Get the firmware version and the total space and available space of the U disk
@@ -97,15 +113,21 @@ class Camera {
     final url = '$mainURL/${NetworkRoutes.getInformation.path}';
     final response = await connect(url);
 
-    if(response?.body != null && response!.body.isNotEmpty) {
-      final result = response.body.split('\\r\\n');
+    if (response?.data != null && response!.data.isNotEmpty) {
+      // disk_total=30047888
+      // disk_free=24562880
+      // firmware_version=20221101
+      // device_id=4
+      // serial_no=1733923329
 
-      if(result.isNotEmpty && result.length > 3) {
-          return {
-            'disk_total': Helper.numberExtractor(result[0]),
-            'disk_free': Helper.numberExtractor(result[1]),
-            'firmware_version': Helper.numberExtractor(result[2]),
-          };
+      final result = response.data.split(_splitFrom);
+
+      if (result.isNotEmpty && result.length > 3) {
+        return {
+          'disk_total': Helper.numberExtractor(result[0].split('=')[1]),
+          'disk_free': Helper.numberExtractor(result[1].split('=')[1]),
+          'firmware_version': Helper.numberExtractor(result[2].split('=')[1]),
+        };
       } else {
         debugPrint('Information not available');
       }
@@ -121,7 +143,7 @@ class Camera {
   static Future<bool?> get exitTimelapse async {
     final url = '$mainURL/${NetworkRoutes.exitTimelapse.path}';
     var response = await connect(url);
-    return response?.body.contains(successStatus);
+    return response?.data.contains(successStatus);
   }
 
   // Turn off the camera
@@ -131,7 +153,7 @@ class Camera {
   static Future<bool?> get shutdown async {
     final url = '$mainURL/${NetworkRoutes.shutdown.path}';
     var response = await connect(url);
-    return response?.body.contains(successStatus);
+    return response?.data.contains(successStatus);
   }
 
   // Format the udisk
@@ -141,7 +163,7 @@ class Camera {
   static Future<bool?> get formatUDisk async {
     final url = '$mainURL/${NetworkRoutes.formatUDisk.path}';
     var response = await connect(url);
-    return response?.body.contains(successStatus);
+    return response?.data.contains(successStatus);
   }
 
   // Config camera button setting and auto shutdown setting
@@ -156,7 +178,7 @@ class Camera {
   static Future<bool?> config(int btnSetting, int shutdownMode) async {
     final url = '$mainURL/${NetworkRoutes.config.path}?btnsetting=$btnSetting&shutdownmode=$shutdownMode';
     var response = await connect(url);
-    return response?.body.contains(successStatus);
+    return response?.data.contains(successStatus);
   }
 
   // send capture command to camera
@@ -196,10 +218,9 @@ class Camera {
     required int longitude,
     required int latitude,
   }) async {
-    final url = '$mainURL/${NetworkRoutes.doCapture.path}?capmode=$capmode&strobemode=$strobemode&timelapse=$timelapse&isomode=$isomode&evmode=$evmode&exposure=$exposure&iso=$iso&delay=$delay&longitude=$longitude&latitude=$latitude';
+    final url =
+        '$mainURL/${NetworkRoutes.doCapture.path}?capmode=$capmode&strobemode=$strobemode&timelapse=$timelapse&isomode=$isomode&evmode=$evmode&exposure=$exposure&iso=$iso&delay=$delay&longitude=$longitude&latitude=$latitude';
     var response = await connect(url);
-    return response?.body.contains(successStatus);
+    return response?.data.contains(successStatus);
   }
 }
-
-
