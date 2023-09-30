@@ -6,7 +6,7 @@ BaseOptions options = BaseOptions(
   receiveDataWhenStatusError: true,
   connectTimeout: const Duration(seconds: 3),
   headers: {
-    'Content-Type': 'application/json;charset=utf-8',
+    'Content-Type': 'text/plain;charset=utf-8',
   },
   receiveTimeout: const Duration(seconds: 120),
 );
@@ -40,22 +40,27 @@ Future<Response?> downloadDio({
   Function(int, int)? onReceiveProgress,
 }) async {
   try {
-    return await dio.get(
-      url,
-      //downloadPath,
-      onReceiveProgress: onReceiveProgress,
-      options: Options(
-        responseType: ResponseType.bytes,
-        // followRedirects: false,
-        // validateStatus: (status) {
-        //   return status < 500;
-        // },
-      ),
-    );
+    if(downloadPath.isNotEmpty) {
+      return await dio.download(
+        url,
+        downloadPath,
+        onReceiveProgress: onReceiveProgress,
+        options: Options(
+          responseType: ResponseType.bytes,
+        ),
+      );
+    } else {
+      return await dio.get(
+        url,
+        onReceiveProgress: onReceiveProgress,
+        options: Options(
+          responseType: ResponseType.bytes,
+        ),
+      );
+    }
     //debugPrint('Download Completed.');
   } catch (e) {
     debugPrint('Download Failed.\n\n$e');
     return null;
   }
-
 }

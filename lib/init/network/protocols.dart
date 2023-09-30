@@ -63,9 +63,9 @@ class Camera {
   // Response:
   // Response status 200: thumbnail jpg file data
   // Response status 404 (when ori file not found)
-  static Future<void> getThumb(String filename, String downloadPath) async {
+  static Future<Response?> getThumb(String filename, String downloadPath) async {
     final url = getThumbUrl(filename);
-    await downloadDio(url: url, downloadPath: downloadPath);
+    return await downloadDio(url: url, downloadPath: downloadPath);
   }
 
   //it is used for showing thumbs as network images in gallery

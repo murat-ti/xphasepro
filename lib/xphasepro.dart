@@ -3,7 +3,6 @@ import 'dart:ffi' show DynamicLibrary;
 import 'dart:io' show Platform;
 import 'dart:isolate';
 import 'package:dio/dio.dart';
-
 import 'init/network/protocols.dart';
 import 'init/utils/xphasepro_bridge.dart';
 
@@ -17,7 +16,7 @@ Future<bool> isSaved() async {
   return Camera.isSaved;
 }
 
-Future<void> getThumb(String filename, String downloadPath) async {
+Future<Response?> getThumb(String filename, String downloadPath) async {
   return Camera.getThumb(filename, downloadPath);
 }
 

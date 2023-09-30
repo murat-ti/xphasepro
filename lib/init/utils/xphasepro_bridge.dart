@@ -1,9 +1,11 @@
 import 'dart:io';
 import 'dart:ffi' as ffi;
 import 'dart:typed_data' as td show Uint8List;
+import 'package:dio/dio.dart';
 import 'package:ffi/ffi.dart';
 import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:path/path.dart' as path show basenameWithoutExtension;
+import '../network/protocols.dart';
 import 'type_converter.dart';
 
 typedef ProInitRawFileReaderType = ffi.Pointer<ffi.Void> Function(ffi.Pointer<ffi.Uint8>, ffi.Int);
@@ -100,12 +102,13 @@ class XPhaseProBridge {
   }
 
   int getPointer() {
-    final ffi.Pointer<ffi.Uint8> dbgDataPtr = TypeConverter.castToCFRomList(data: List<int>.filled(256, 0, growable: false));
+    final ffi.Pointer<ffi.Uint8> dbgDataPtr =
+        TypeConverter.castToCFRomList(data: List<int>.filled(256, 0, growable: false));
     debugPrint(dbgDataPtr.toString());
     return dbgDataPtr.address;
   }
 
-  int convertImage({
+  Future<int> convertImage({
     required String inputPath,
     required String outputPath,
     required int threadNum,
@@ -129,7 +132,7 @@ class XPhaseProBridge {
     required double wbConfR,
     required double saturation,
     required int pointer,
-  }) {
+  }) async {
     int result = -1;
     //const threadNum = 4; //should be 4
     //const memType = 0; //should be 0
@@ -175,8 +178,21 @@ class XPhaseProBridge {
       //debugPrint('output path $outputPath');
       File file = File(inputPath);
       int fileSize = file.lengthSync();
+
+      // Response? response = await Camera.getFile(oriFilename, '', (int received, int total) {
+      //   print('Downloading: ${((received / total) * 100).floor()}');
+      // });
+      //
+      // print('response.headers');
+      // print(response?.headers['content-length']);
+      // print(response?.data.runtimeType);
+      //
+      // final contentLength = response?.headers['content-length'];
+      // final fileSize = int.tryParse(contentLength![0]) ?? 0;
+      print('File size $fileSize');
       //td.Uint8List data = file.readAsBytesSync();
       WeakReference<td.Uint8List> weakReferenceData = WeakReference(file.readAsBytesSync());
+      //WeakReference<td.Uint8List> weakReferenceData = WeakReference(response?.data);
       if (weakReferenceData.target != null) {
         oriFileBufPtr = TypeConverter.castToC(data: weakReferenceData.target!);
 
@@ -232,6 +248,7 @@ class XPhaseProBridge {
       } else {
         debugPrint('weakReferenceData is null');
       }
+
     } catch (e) {
       debugPrint('Exception: ${e.toString()}');
     } finally {

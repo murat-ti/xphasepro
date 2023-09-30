@@ -1,11 +1,12 @@
 import 'dart:async';
-import 'dart:io' show File;
+import 'dart:io' show File, FileMode, Process, ProcessResult;
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as path;
 import 'package:xphasepro_example/init/enum/camera_actions.dart';
 import 'init/directory/temp_directory.dart';
 import 'package:xphasepro/xphasepro.dart' as xphasepro;
 import 'package:dio/dio.dart' show Response;
+import 'dart:convert';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -249,10 +250,10 @@ class _MyHomePageState extends State<MyHomePage> {
     //getListItems = ['2030-01-01_10-40-53','2030-01-01_10-40-53','2030-01-01_00-00-00'];
     final response = await xphasepro.getList();
     if (response != null) {
-     getListItems = response;
-     infoText = '';
+      getListItems = response;
+      infoText = '';
     } else {
-     infoText = 'error occurs';
+      infoText = 'error occurs';
     }
     // final response = await xphasepro.getList();
     // getListItems = response ?? [];
@@ -308,6 +309,7 @@ class _MyHomePageState extends State<MyHomePage> {
       index: index,
     );*/
     await xphasepro.getThumb(filenameWoExt, downloadPath);
+
     setSubActiveIndex(File(downloadPath).existsSync() ? 'downloaded' : 'error occurs', index: index);
   }
 
@@ -323,12 +325,22 @@ class _MyHomePageState extends State<MyHomePage> {
       downloadPath: downloadPath,
       index: index,
     );*/
-    Response? response = await xphasepro.getFile(filenameWoExt, downloadPath, onReceiveProgress: (int received, int total) {
-      setSubActiveIndex('Downloading: ${((received / total) * 100).floor()}',index:index);
+    var response = await xphasepro.getFile(filenameWoExt, '', onReceiveProgress: (int received, int total) {
+      setSubActiveIndex('Downloading: ${((received / total) * 100).floor()}', index: index);
     });
+
+    final contentLength = response?.headers['content-length'];
+    final fileSize = int.tryParse(contentLength![0]) ?? 0;
     print('response.headers');
-    print(response?.headers['content-length']);
+    print(fileSize);
     print(response?.data.runtimeType);
+    try {
+      File file = File('${TempDirectory.path}/$filenameWoExt.ori');
+      file.writeAsBytesSync(response?.data);
+      response = null;
+    } catch (e) {
+      print(e);
+    }
     setSubActiveIndex(File(downloadPath).existsSync() ? 'Downloaded' : 'error occurs', index: index);
   }
 
@@ -404,42 +416,50 @@ class _MyHomePageState extends State<MyHomePage> {
 
     final file = File(oriPath);
 
-    if (!file.existsSync()) {
-      setSubActiveIndex('The ori file not found in $oriPath', index: index);
-    } else {
-      try {
-        //double? progress = await xphasepro.getConvertingProgress() ?? 0.0;
-        setSubActiveIndex('Converting started...', index: index);
-        pointer = xphasepro.getPointer();
-        timer = Timer.periodic(const Duration(seconds: 3), getProgressInTimer);
-        result = await xphasepro.convertOriToJpg(
-          inputPath: oriPath,
-          outputPath: '${TempDirectory.path}/',
-          pointer: pointer,
-        );
-        final outputFileName = '$filenameWoExt.jpg';
-        if (result == 0) {
-          jpgPath = path.join(TempDirectory.path, outputFileName);
-        } else {
-          jpgPath = null;
-        }
-        setSubActiveIndex('Result: $result', index: index);
-      } catch (e) {
-        final result = e.toString();
-        if (result.contains('x86/libPanoMaker.so')) {
-          setSubActiveIndex('It does not work on emulator. No support for x86 processor.', index: index);
-        } else {
-          setSubActiveIndex(e.toString(), index: index);
-        }
-      } finally {
-        timer?.cancel();
-        progress = 0.0;
-        pointer = 0;
-        if (result == 0) {
-          setSubActiveIndex('Completed execution in ${stopwatch.elapsed.inSeconds} seconds', index: index);
-        }
+    // if (!file.existsSync()) {
+    //   setSubActiveIndex('The ori file not found in $oriPath', index: index);
+    // } else {
+    try {
+      //double? progress = await xphasepro.getConvertingProgress() ?? 0.0;
+      setSubActiveIndex('Converting started...', index: index);
+      pointer = xphasepro.getPointer();
+      timer = Timer.periodic(const Duration(seconds: 1), getProgressInTimer);
+      result = await xphasepro.convertOriToJpg(
+        inputPath: oriPath,
+        outputPath: '${TempDirectory.path}/',
+        pointer: pointer,
+      );
+      if (result != null) {
+        print('timer cancel');
+        timer.cancel();
+      }
+      final outputFileName = '$filenameWoExt.jpg';
+      if (result == 0) {
+        jpgPath = path.join(TempDirectory.path, outputFileName);
+      } else {
+        jpgPath = null;
+      }
+      setSubActiveIndex('Result: $result', index: index);
+    } catch (e) {
+      final result = e.toString();
+      if (result.contains('x86/libPanoMaker.so')) {
+        setSubActiveIndex('It does not work on emulator. No support for x86 processor.', index: index);
+      } else {
+        setSubActiveIndex(e.toString(), index: index);
+      }
+    } finally {
+      print('check if timer cancelled');
+      if (timer != null && timer.isActive) {
+        print('timer cancelled 2-nd time');
+        timer.cancel();
+      }
+      progress = 0.0;
+      pointer = 0;
+      if (result == 0) {
+        setSubActiveIndex('Completed execution in ${stopwatch.elapsed.inSeconds} seconds', index: index);
       }
     }
+    //}
   }
 
   Future<void> getProgressInTimer(Timer t) async {
