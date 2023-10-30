@@ -331,6 +331,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
     final contentLength = response?.headers['content-length'];
     final fileSize = int.tryParse(contentLength![0]) ?? 0;
+    print(response?.headers);
     print('response.headers');
     print(fileSize);
     print(response?.data.runtimeType);
